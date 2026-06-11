@@ -1,0 +1,39 @@
+services:
+  # The Webhook Web Server
+  webhook-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: my-webhook-listener
+    restart: unless-stopped
+    ports:
+      - "8042:80"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - RABBITMQ_HOST=rabbitmq-server
+      # Pass custom credentials to the Python application if needed
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+    depends_on:
+      rabbitmq-server:
+        condition: service_healthy
+
+  # The RabbitMQ Message Broker
+  rabbitmq-server:
+    image: rabbitmq:3.13-management-alpine
+    container_name: my-rabbitmq-broker
+    restart: unless-stopped
+    ports:
+      - "15672:15672"
+    environment:
+      # Maps your custom .env variables to the official image parameters
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 3

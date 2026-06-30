@@ -1,5 +1,5 @@
 services:
-  # The Webhook Web Server
+  # The Webhook Web Server (Ingester)
   webhook-app:
     build:
       context: .
@@ -14,7 +14,26 @@ services:
       - PYTHONUNBUFFERED=1
       - WEBHOOK_SECRET=${WEBHOOK_SECRET}
       - RABBITMQ_HOST=rabbitmq-server
-      # Pass custom credentials to the Python application if needed
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+    depends_on:
+      rabbitmq-server:
+        condition: service_healthy
+
+  # The Background Processing Worker (Consumer)
+  webhook-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: my-webhook-worker
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    # Overrides the default CMD ["python", "app.py"] from the Dockerfile
+    command: ["python", "worker.py"]
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RABBITMQ_HOST=rabbitmq-server
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
     depends_on:
@@ -29,7 +48,6 @@ services:
     ports:
       - "15672:15672"
     environment:
-      # Maps your custom .env variables to the official image parameters
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
     healthcheck:

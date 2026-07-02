@@ -74,9 +74,9 @@ def main():
     try:
         print(f"🔌 Connecting to MongoDB at {MONGO_HOST}:{MONGO_PORT}...")
         mongo_client = MongoClient(host=MONGO_HOST, port=int(MONGO_PORT))
-        # Access database 'webhook_db' and collection 'received_webhooks'
-        db = mongo_client["webhook_db"]
-        webhooks_collection = db["received_webhooks"]
+        # Access database 'causality' and collection 'payloads'
+        db = mongo_client["causality"]
+        webhooks_collection = db["payloads"]
         print("✅ MongoDB Connection Established Successfully.")
     except Exception as mongo_err:
         print(f"❌ Failed to connect to MongoDB: {mongo_err}")

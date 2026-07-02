@@ -7,7 +7,7 @@ from pymongo import MongoClient
 
 # Global MongoDB Client configuration placeholders
 db = None
-webhooks_collection = None
+payload_collection = None
 
 def get_retry_count(properties):
     if properties.headers and 'x-death' in properties.headers:
@@ -16,7 +16,7 @@ def get_retry_count(properties):
             return sum(hop.get('count', 0) for hop in death_log)
     return 0
 
-def process_webhook_payload(ch, method, properties, body):
+def process_payload(ch, method, properties, body):
     print("📥 [Worker] Processing an incoming message.")
     retry_count = get_retry_count(properties)
     MAX_RETRIES = 3
@@ -34,7 +34,7 @@ def process_webhook_payload(ch, method, properties, body):
         payload["_retry_count"] = retry_count
         
         # Save straight to the database
-        insert_result = webhooks_collection.insert_one(payload)
+        insert_result = payload_collection.insert_one(payload)
         print(f"💾 [Worker] Safely stored payload in MongoDB with ID: {insert_result.inserted_id}")
         
         # 3. Acknowledge the message was successfully cleared
@@ -57,7 +57,7 @@ def process_webhook_payload(ch, method, properties, body):
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 def main():
-    global db, webhooks_collection
+    global db, payload_collection
     
     # Load environment variables
     RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
@@ -76,7 +76,7 @@ def main():
         mongo_client = MongoClient(host=MONGO_HOST, port=int(MONGO_PORT))
         # Access database 'causality' and collection 'payloads'
         db = mongo_client["causality"]
-        webhooks_collection = db["payloads"]
+        payload_collection = db["payloads"]
         print("✅ MongoDB Connection Established Successfully.")
     except Exception as mongo_err:
         print(f"❌ Failed to connect to MongoDB: {mongo_err}")
@@ -91,7 +91,7 @@ def main():
     # RabbitMQ Topology Layout Definitions
     channel.exchange_declare(exchange='dlx_exchange', exchange_type='topic')
     channel.queue_declare(
-        queue='webhook_queue', 
+        queue='queue', 
         durable=True,
         arguments={
             'x-dead-letter-exchange': 'dlx_exchange',
@@ -99,20 +99,20 @@ def main():
         }
     )
     channel.queue_declare(
-        queue='webhook_retry_queue',
+        queue='retry_queue',
         durable=True,
         arguments={
             'x-dead-letter-exchange': '',
-            'x-dead-letter-routing-key': 'webhook_queue',
+            'x-dead-letter-routing-key': 'queue',
             'x-message-ttl': 5000
         }
     )
-    channel.queue_bind(exchange='dlx_exchange', queue='webhook_retry_queue', routing_key='retry')
-    channel.queue_declare(queue='webhook_dead_letter_queue', durable=True)
-    channel.queue_bind(exchange='dlx_exchange', queue='webhook_dead_letter_queue', routing_key='dead')
+    channel.queue_bind(exchange='dlx_exchange', queue='retry_queue', routing_key='retry')
+    channel.queue_declare(queue='dead_letter_queue', durable=True)
+    channel.queue_bind(exchange='dlx_exchange', queue='dead_letter_queue', routing_key='dead')
 
     channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue='webhook_queue', on_message_callback=process_webhook_payload)
+    channel.basic_consume(queue='queue', on_message_callback=process_payload)
     
     print("🛸 [Worker] Listening for tasks...")
     channel.start_consuming()

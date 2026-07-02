@@ -23,20 +23,9 @@ USER_CHOICE=$(echo "$USER_CHOICE" | tr '[:upper:]' '[:lower:]')
 USER_CHOICE="${USER_CHOICE:-y}"
 
 if [[ "$USER_CHOICE" == "y" || "$USER_CHOICE" == "yes" ]]; then
-    echo "💥 Dropping database..."
-    echo ""
-    
     # 2. Execute the drop database command inside the container using mongosh
     docker exec -i "$CONTAINER_NAME" mongosh "$DB_NAME" --quiet --eval "
         const result = db.dropDatabase();
         print(JSON.stringify(result, null, 2));
     "
-    
-    echo ""
-    echo "✨ Successfully wiped the '$DB_NAME' database clean!"
-    echo "💡 Note: MongoDB will automatically recreate the database the next time your worker inserts a payload."
-    echo ""
-else
-    echo "⏭️  Operation canceled. Database left untouched."
-    echo ""
 fi

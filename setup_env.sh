@@ -4,6 +4,7 @@
 set -e
 
 ENV_FILE=".env"
+GITIGNORE_FILE=".gitignore"
 
 echo "🔍 Checking and installing missing system prerequisites..."
 
@@ -89,12 +90,9 @@ if [ -n "$INSTALL_CMD" ]; then
     ensure_dependency "pip3" "$PKG_PIP"
     
     # ACCURATE VENV DETECTOR FOR DEBIAN/UBUNTU
-    # Tries to actually execute a test venv setup. If ensurepip error fires, it captures it.
     if [ -f /etc/debian_version ] && [ -n "$PKG_VENV" ]; then
-        # Create a temp directory name
         TEST_VENV_DIR=$(mktemp -d -t venv-test-XXXXXXXXXX)
         
-        # Test if it actually works or throws the ensurepip missing error
         if ! python3 -m venv "$TEST_VENV_DIR" &> /dev/null; then
             echo "📥 Python venv module for $PY_VER_CMD is broken/missing. Installing $PKG_VENV..."
             if [ -n "$UPDATE_CMD" ]; then
@@ -104,8 +102,6 @@ if [ -n "$INSTALL_CMD" ]; then
             $USE_SUDO $INSTALL_CMD "$PKG_VENV"
             echo "✅ $PKG_VENV successfully installed."
         fi
-        
-        # Clean up the test directory completely
         rm -rf "$TEST_VENV_DIR"
     fi
     
@@ -164,19 +160,31 @@ fi
 echo "📦 Reviewing local python test libraries..."
 
 # Clean out any previously broken venv folders to ensure a pristine build
-if [ -d ".venv" ]; then
-    echo "🗑️ Clearing existing virtual environment to avoid sync conflicts..."
+if [ -d ".venv" ] && [ ! -f ".venv/bin/pip" ]; then
+    echo "🗑️ Clearing broken virtual environment..."
     rm -rf .venv
 fi
 
-echo "Creating a local isolated virtual environment in .venv/..."
-python3 -m venv .venv
+if [ ! -d ".venv" ]; then
+    echo "Creating a local isolated virtual environment in .venv/..."
+    python3 -m venv .venv
+fi
 
 # Use the pip binary directly inside the venv to bypass PEP 668 system blockages
 .venv/bin/pip install --upgrade pip --quiet
-.venv/bin/pip install requests pika --quiet
+.venv/bin/pip install requests pika pymongo --quiet
+
+# 6. Safety check: Create a .gitignore file if missing to hide tokens/virtual environments
+if [ ! -f "$GITIGNORE_FILE" ]; then
+    cat << EOF > "$GITIGNORE_FILE"
+.env
+.venv/
+__pycache__/
+*.pyc
+EOF
+    echo "🛡️ Created a default '$GITIGNORE_FILE' for repository security."
+fi
 
 echo "🏁 Setup script complete!"
-echo "💡 To execute your test script on the host machine later, run: .venv/bin/python test_webhook.py"
+echo "💡 To execute your test script on the host machine later, run: ./test.sh"
 echo "👉 You are now ready to run: docker compose up -d"
-

@@ -113,34 +113,42 @@ fi
 echo "🔑 Crafting environmental tokens..."
 GEN_WEBHOOK_SECRET=$(openssl rand -hex 32)
 GEN_RABBIT_PASS=$(openssl rand -hex 12)
+GEN_API_KEY=$(openssl rand -hex 24)
 
 # Case A: File does not exist -> Create it with all fresh values
 if [ ! -f "$ENV_FILE" ]; then
     cat << EOF > "$ENV_FILE"
-WEBHOOK_SECRET=$GEN_WEBHOOK_SECRET
+SECRET=$GEN_WEBHOOK_SECRET
+API_KEY=$GEN_API_KEY
 RABBITMQ_USER=admin
 RABBITMQ_PASS=$GEN_RABBIT_PASS
 EOF
     echo "✨ Created a fresh '$ENV_FILE' file with all secret variables populated!"
 
-# Case B: File exists -> Update WEBHOOK_SECRET and add RabbitMQ fields if missing
+# Case B: File exists -> Update SECRET and add missing parameters safely
 else
     NEED_NEWLINE=false
     if [ -s "$ENV_FILE" ] && [ "$(tail -c 1 "$ENV_FILE")" != "" ]; then
         NEED_NEWLINE=true
     fi
 
-    if grep -q "^WEBHOOK_SECRET=" "$ENV_FILE"; then
+    if grep -q "^SECRET=" "$ENV_FILE"; then
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s/^WEBHOOK_SECRET=.*/WEBHOOK_SECRET=$GEN_WEBHOOK_SECRET/" "$ENV_FILE"
+            sed -i '' "s/^SECRET=.*/SECRET=$GEN_WEBHOOK_SECRET/" "$ENV_FILE"
         else
-            sed -i "s/^WEBHOOK_SECRET=.*/WEBHOOK_SECRET=$GEN_WEBHOOK_SECRET/" "$ENV_FILE"
+            sed -i "s/^SECRET=.*/SECRET=$GEN_WEBHOOK_SECRET/" "$ENV_FILE"
         fi
-        echo "🔄 Updated 'WEBHOOK_SECRET' inside your existing '$ENV_FILE' file!"
+        echo "🔄 Updated 'SECRET' inside your existing '$ENV_FILE' file!"
     else
         [ "$NEED_NEWLINE" = true ] && echo "" >> "$ENV_FILE" && NEED_NEWLINE=false
-        echo "WEBHOOK_SECRET=$GEN_WEBHOOK_SECRET" >> "$ENV_FILE"
-        echo "➕ Appended missing 'WEBHOOK_SECRET' to your '$ENV_FILE' file!"
+        echo "SECRET=$GEN_WEBHOOK_SECRET" >> "$ENV_FILE"
+        echo "➕ Appended missing 'SECRET' to your '$ENV_FILE' file!"
+    fi
+
+    if ! grep -q "^API_KEY=" "$ENV_FILE"; then
+        [ "$NEED_NEWLINE" = true ] && echo "" >> "$ENV_FILE" && NEED_NEWLINE=false
+        echo "API_KEY=$GEN_API_KEY" >> "$ENV_FILE"
+        echo "➕ Appended missing 'API_KEY' to your '$ENV_FILE' file!"
     fi
 
     if ! grep -q "^RABBITMQ_USER=" "$ENV_FILE"; then
@@ -159,7 +167,6 @@ fi
 # 5. Automatically manage local isolated Virtual Environment
 echo "📦 Reviewing local python test libraries..."
 
-# Clean out any previously broken venv folders to ensure a pristine build
 if [ -d ".venv" ] && [ ! -f ".venv/bin/pip" ]; then
     echo "🗑️ Clearing broken virtual environment..."
     rm -rf .venv
@@ -170,11 +177,10 @@ if [ ! -d ".venv" ]; then
     python3 -m venv .venv
 fi
 
-# Use the pip binary directly inside the venv to bypass PEP 668 system blockages
 .venv/bin/pip install --upgrade pip --quiet
 .venv/bin/pip install requests pika pymongo --quiet
 
-# 6. Safety check: Create a .gitignore file if missing to hide tokens/virtual environments
+# 6. Safety check: Create a .gitignore file if missing
 if [ ! -f "$GITIGNORE_FILE" ]; then
     cat << EOF > "$GITIGNORE_FILE"
 .env

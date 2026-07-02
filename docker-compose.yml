@@ -13,11 +13,11 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - WEBHOOK_SECRET=${WEBHOOK_SECRET}
-      - RABBITMQ_HOST=rabbitmq-server
+      - RABBITMQ_HOST=causality-rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
     depends_on:
-      rabbitmq-server:
+      causality-rabbitmq:
         condition: service_healthy
 
   # The Background Processing Worker (Consumer)
@@ -32,16 +32,16 @@ services:
     command: ["python", "worker.py"]
     environment:
       - PYTHONUNBUFFERED=1
-      - RABBITMQ_HOST=rabbitmq-server
+      - RABBITMQ_HOST=causality-rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
       # MongoDB Connection Info
-      - MONGO_HOST=mongodb-server
+      - MONGO_HOST=causality-mongodb
       - MONGO_PORT=27017
     depends_on:
-      rabbitmq-server:
+      causality-rabbitmq:
         condition: service_healthy
-      mongodb-server:
+      causality-mongodb:
         condition: service_started
 
   # The RabbitMQ Message Broker

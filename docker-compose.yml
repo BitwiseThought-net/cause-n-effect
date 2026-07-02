@@ -29,16 +29,20 @@ services:
     restart: unless-stopped
     volumes:
       - .:/app
-    # Overrides the default CMD ["python", "app.py"] from the Dockerfile
     command: ["python", "worker.py"]
     environment:
       - PYTHONUNBUFFERED=1
       - RABBITMQ_HOST=rabbitmq-server
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
+      # MongoDB Connection Info
+      - MONGO_HOST=mongodb-server
+      - MONGO_PORT=27017
     depends_on:
       rabbitmq-server:
         condition: service_healthy
+      mongodb-server:
+        condition: service_started
 
   # The RabbitMQ Message Broker
   rabbitmq-server:
@@ -55,3 +59,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  # The MongoDB Persistent Storage
+  mongodb-server:
+    image: mongo:7.0
+    container_name: my-mongodb-database
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      # Named volume keeps your data safe even if you stop/destroy containers
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

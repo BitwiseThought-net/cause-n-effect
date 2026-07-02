@@ -38,18 +38,18 @@ secret = ""
 if os.path.exists(".env"):
     with open(".env") as f:
         for line in f:
-            if line.startswith("WEBHOOK_SECRET="):
+            if line.startswith("SECRET="):
                 secret = line.strip().split("=", 1)[1].encode()
 
 if not secret:
-    print("ERROR: WEBHOOK_SECRET not found in .env file.")
+    print("ERROR: SECRET not found in .env file.")
     sys.exit(1)
 
 body = b"{\"event\":\"user.created\",\"id\":\"usr_12345\"}"
 sig = "sha256=" + hmac.new(secret, body, hashlib.sha256).hexdigest()
 
 # Generates clean, adaptive execution string matching your environment profile
-print(f"curl -s -L -X POST {protocol}://{target_host}{target_port}/webhook -H \"Content-Type: application/json\" -H \"X-Hub-Signature-256: {sig}\" -d '\''{{\"event\":\"user.created\",\"id\":\"usr_12345\"}}'\''")
+print(f"curl -s -L -X POST {protocol}://{target_host}{target_port}/ -H \"Content-Type: application/json\" -H \"X-Hub-Signature-256: {sig}\" -d '\''{{\"event\":\"user.created\",\"id\":\"usr_12345\"}}'\''")
 ')
 
 if [[ "$CURL_COMMAND" == "ERROR:"* ]]; then

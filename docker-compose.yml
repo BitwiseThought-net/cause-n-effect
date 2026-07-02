@@ -12,7 +12,7 @@ services:
       - .:/app
     environment:
       - PYTHONUNBUFFERED=1
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - SECRET=${SECRET}
       - RABBITMQ_HOST=causality-rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}

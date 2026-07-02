@@ -34,7 +34,7 @@ secret = ""
 if os.path.exists(".env"):
     with open(".env") as f:
         for line in f:
-            if line.startswith("WEBHOOK_SECRET="):
+            if line.startswith("SECRET="):
                 secret = line.strip().split("=", 1)[1].encode()
 
 if not secret:
@@ -49,7 +49,7 @@ print(f"{sig}|||{body.decode()}")
 ')
 
 if [ "$SETUP_DATA" = "ERROR" ]; then
-    echo "❌ Error: WEBHOOK_SECRET not found in .env file. Run ./setup_env.sh first."
+    echo "❌ Error: SECRET not found in .env file. Run ./setup_env.sh first."
     exit 1
 fi
 
@@ -57,7 +57,7 @@ fi
 SIGNATURE=$(echo "$SETUP_DATA" | awk -F '|||' '{print $1}')
 PAYLOAD_BODY=$(echo "$SETUP_DATA" | awk -F '|||' '{print $2}')
 
-echo "🚀 Bombarding webhook endpoint with $NUM_ITEMS items..."
+echo "🚀 Bombarding endpoint with $NUM_ITEMS items..."
 echo "📊 Signature used: $SIGNATURE"
 echo "--------------------------------------------------------"
 
@@ -67,7 +67,7 @@ START_TIME=$(date +%s)
 for ((i=1; i<=NUM_ITEMS; i++)); do
   # Sends request silently to maximize terminal performance
   curl -s -o /dev/null -w "" \
-    -X POST http://localhost:8042/webhook \
+    -X POST http://localhost:8042/ \
     -H "Content-Type: application/json" \
     -H "X-Hub-Signature-256: $SIGNATURE" \
     -d "$PAYLOAD_BODY"

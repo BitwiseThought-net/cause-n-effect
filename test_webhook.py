@@ -4,23 +4,23 @@ import json
 import os
 import requests
 
-def send_signed_webhook():
+def send_signed_payload():
     # 1. Parse and extract variables directly from your local .env file
     secret_key = None
     if os.path.exists(".env"):
         with open(".env", "r") as f:
             for line in f:
-                if line.startswith("WEBHOOK_SECRET="):
+                if line.startswith("SECRET="):
                     secret_key = line.strip().split("=", 1)[1].encode("utf-8")
                     break
 
     if not secret_key:
-        print("❌ Error: Could not find WEBHOOK_SECRET inside your .env file.")
+        print("❌ Error: Could not find SECRET inside your .env file.")
         print("Please run your setup_env.sh script first.")
         return
 
     # 2. Define the endpoint URL (Mapping to the external port we locked down)
-    url = "http://localhost:8042/webhook"
+    url = "http://localhost:8042/"
     
     # 3. Create a realistic JSON test payload
     payload = {
@@ -63,4 +63,4 @@ def send_signed_webhook():
         print(f"⚠️ An error occurred: {e}")
 
 if __name__ == "__main__":
-    send_signed_webhook()
+    send_signed_payload()

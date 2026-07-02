@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: my-webhook-listener
+    container_name: causality-webhook
     restart: unless-stopped
     ports:
       - "8042:80"
@@ -25,7 +25,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: my-webhook-worker
+    container_name: causality-worker
     restart: unless-stopped
     volumes:
       - .:/app
@@ -47,7 +47,7 @@ services:
   # The RabbitMQ Message Broker
   causality-rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: my-rabbitmq-broker
+    container_name: causality-rabbitmq
     restart: unless-stopped
     ports:
       - "15672:15672"
@@ -63,7 +63,7 @@ services:
   # The MongoDB Persistent Storage
   causality-mongodb:
     image: mongo:7.0
-    container_name: my-mongodb-database
+    container_name: causality-mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"

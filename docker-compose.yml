@@ -13,6 +13,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - SECRET=${SECRET}
+      - API_KEY=${API_KEY}
       - RABBITMQ_HOST=causality-rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
@@ -35,7 +36,6 @@ services:
       - RABBITMQ_HOST=causality-rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
-      # MongoDB Connection Info
       - MONGO_HOST=causality-mongodb
       - MONGO_PORT=27017
     depends_on:
@@ -68,7 +68,6 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      # Named volume keeps your data safe even if you stop/destroy containers
       - mongo-data:/data/db
 
 volumes:

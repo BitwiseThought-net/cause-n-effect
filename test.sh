@@ -2,10 +2,11 @@
 set -e
 
 SSL=false
+USE_TOKEN=false
 HOST="localhost"
 PORT=":8042"
 
-# 1. Parse the command line argument for -host
+# 1. Parse the command line arguments
 while [[ $# -gt 0 ]]; do
   case $1 in
     -host)
@@ -14,42 +15,53 @@ while [[ $# -gt 0 ]]; do
       PORT=""
       shift 2
       ;;
+    -token)
+      USE_TOKEN=true
+      shift
+      ;;
     *)
       echo "❌ Unknown parameter: $1"
-      echo "Usage: ./test.sh -host <hostname>"
+      echo "Usage: ./test.sh [-host <hostname>] [-token]"
       exit 1
       ;;
   esac
 done
 
 # 2. Inject bash environment parameters cleanly into Python execution
-CURL_COMMAND=$(env SSL="$SSL" HOST="$HOST" PORT="$PORT" .venv/bin/python3 -c '
+CURL_COMMAND=$(env SSL="$SSL" HOST="$HOST" PORT="$PORT" USE_TOKEN="$USE_TOKEN" .venv/bin/python3 -c '
 import hmac, hashlib, json, os, sys
 
-# Safely extract variables passed down from bash
 target_ssl = os.getenv("SSL", "false").lower() == "true"
 target_host = os.getenv("HOST", "localhost")
 target_port = os.getenv("PORT", ":8042")
+mock_token_path = os.getenv("USE_TOKEN", "false").lower() == "true"
 
-# Determine the correct URL schema based on the SSL boolean status
 protocol = "https" if target_ssl else "http"
+url = f"{protocol}://{target_host}{target_port}/"
 
 secret = ""
+api_key = ""
 if os.path.exists(".env"):
     with open(".env") as f:
         for line in f:
             if line.startswith("SECRET="):
                 secret = line.strip().split("=", 1)[1].encode()
+            if line.startswith("API_KEY="):
+                api_key = line.strip().split("=", 1)[1]
 
-if not secret:
-    print("ERROR: SECRET not found in .env file.")
-    sys.exit(1)
-
-body = b"{\"event\":\"user.created\",\"id\":\"usr_12345\"}"
-sig = "sha256=" + hmac.new(secret, body, hashlib.sha256).hexdigest()
-
-# Generates clean, adaptive execution string matching your environment profile
-print(f"curl -s -L -X POST {protocol}://{target_host}{target_port}/ -H \"Content-Type: application/json\" -H \"X-Hub-Signature-256: {sig}\" -d '\''{{\"event\":\"user.created\",\"id\":\"usr_12345\"}}'\''")
+if mock_token_path:
+    if not api_key:
+        print("ERROR: API_KEY not found in .env")
+        sys.exit(1)
+    body = "{\"event\":\"user.created\",\"id\":\"usr_12345\"}"
+    print(f"curl -s -L -X POST {url} -H \"Content-Type: application/json\" -H \"Authorization: Bearer {api_key}\" -d '\''{body}'\''")
+else:
+    if not secret:
+        print("ERROR: SECRET not found in .env")
+        sys.exit(1)
+    body = b"{\"event\":\"user.created\",\"id\":\"usr_12345\"}"
+    sig = "sha256=" + hmac.new(secret, body, hashlib.sha256).hexdigest()
+    print(f"curl -s -L -X POST {url} -H \"Content-Type: application/json\" -H \"X-Hub-Signature-256: {sig}\" -d '\''{body.decode()}'\''")
 ')
 
 if [[ "$CURL_COMMAND" == "ERROR:"* ]]; then

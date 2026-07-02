@@ -2,10 +2,30 @@ import hmac
 import hashlib
 import json
 import os
+import sys
 import requests
 
 def send_signed_payload():
-    # 1. Parse and extract variables directly from your local .env file
+    # 1. Initialize default development endpoints
+    ssl = False
+    host = "localhost"
+    port = ":8042"
+
+    # 2. Parse command line arguments directly inside Python context
+    args = sys.argv[1:]
+    if "-host" in args:
+        try:
+            host_idx = args.index("-host")
+            host = args[host_idx + 1]
+            ssl = True
+            port = ""  # Strip off port string for remote target mappings
+        except IndexError:
+            print("❌ Error: -host parameter requires an accompanying hostname argument.")
+            return
+
+    protocol = "https" if ssl else "http"
+
+    # 3. Extract your authorization secret
     secret_key = None
     if os.path.exists(".env"):
         with open(".env", "r") as f:
@@ -19,10 +39,9 @@ def send_signed_payload():
         print("Please run your setup_env.sh script first.")
         return
 
-    # 2. Define the endpoint URL (Mapping to the external port we locked down)
-    url = "http://localhost:8042/"
-    
-    # 3. Create a realistic JSON test payload
+    url = f"{protocol}://{host}{port}/"
+
+    # 4. Craft your test tracking document package
     payload = {
         "event": "order.completed",
         "timestamp": 1719600000,
@@ -33,34 +52,27 @@ def send_signed_payload():
             "customer_email": "test-user@example.com"
         }
     }
-    
-    # Convert payload dictionary cleanly to bytes
     payload_bytes = json.dumps(payload).encode("utf-8")
-    
-    # 4. Generate the exact SHA256 HMAC cryptographic signature
+
+    # 5. Generate secure signature
     signature = "sha256=" + hmac.new(secret_key, payload_bytes, hashlib.sha256).hexdigest()
-    
-    # 5. Pack the required signature header
+
     headers = {
         "Content-Type": "application/json",
         "X-Hub-Signature-256": signature
     }
-    
+
     print(f"🚀 Sending signed payload to {url}...")
     print(f"🔑 Generated Header Signature: {signature}")
-    
+
     try:
-        # Send the POST request
         response = requests.post(url, data=payload_bytes, headers=headers)
-        
         print(f"📡 Server Status Code: {response.status_code}")
         print(f"📥 Server Response Body: {response.json()}")
-        
     except requests.exceptions.ConnectionError:
-        print("❌ Connection Failed. Is your Docker Compose environment running?")
-        print("Run: docker compose up -d")
+        print("❌ Connection Failed. Is your target environment reachable?")
     except Exception as e:
-        print(f"⚠️ An error occurred: {e}")
+        print(f"⚠️ An unexpected error occurred: {e}")
 
 if __name__ == "__main__":
     send_signed_payload()

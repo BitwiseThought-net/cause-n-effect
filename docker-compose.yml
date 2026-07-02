@@ -1,6 +1,6 @@
 services:
   # The Webhook Web Server (Ingester)
-  webhook-app:
+  causality-webhook:
     build:
       context: .
       dockerfile: Dockerfile
@@ -21,7 +21,7 @@ services:
         condition: service_healthy
 
   # The Background Processing Worker (Consumer)
-  webhook-worker:
+  causality-worker:
     build:
       context: .
       dockerfile: Dockerfile
@@ -45,7 +45,7 @@ services:
         condition: service_started
 
   # The RabbitMQ Message Broker
-  rabbitmq-server:
+  causality-rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: my-rabbitmq-broker
     restart: unless-stopped
@@ -61,7 +61,7 @@ services:
       retries: 3
 
   # The MongoDB Persistent Storage
-  mongodb-server:
+  causality-mongodb:
     image: mongo:7.0
     container_name: my-mongodb-database
     restart: unless-stopped

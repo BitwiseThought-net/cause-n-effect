@@ -1,9 +1,38 @@
 #!/usr/bin/env bash
 set -e
 
-# 1. Use the virtual environment python3 to calculate the signature and construct the curl command
-CURL_COMMAND=$(.venv/bin/python3 -c '
+SSL=false
+HOST="localhost"
+PORT=":8042"
+
+# 1. Parse the command line argument for -host
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -host)
+      SSL=true
+      HOST="$2"
+      PORT=""
+      shift 2
+      ;;
+    *)
+      echo "❌ Unknown parameter: $1"
+      echo "Usage: ./test.sh -host <hostname>"
+      exit 1
+      ;;
+  esac
+done
+
+# 2. Inject bash environment parameters cleanly into Python execution
+CURL_COMMAND=$(env SSL="$SSL" HOST="$HOST" PORT="$PORT" .venv/bin/python3 -c '
 import hmac, hashlib, json, os, sys
+
+# Safely extract variables passed down from bash
+target_ssl = os.getenv("SSL", "false").lower() == "true"
+target_host = os.getenv("HOST", "localhost")
+target_port = os.getenv("PORT", ":8042")
+
+# Determine the correct URL schema based on the SSL boolean status
+protocol = "https" if target_ssl else "http"
 
 secret = ""
 if os.path.exists(".env"):
@@ -19,7 +48,8 @@ if not secret:
 body = b"{\"event\":\"user.created\",\"id\":\"usr_12345\"}"
 sig = "sha256=" + hmac.new(secret, body, hashlib.sha256).hexdigest()
 
-print(f"curl -s -X POST http://localhost:8042/webhook -H \"Content-Type: application/json\" -H \"X-Hub-Signature-256: {sig}\" -d '\''{{\"event\":\"user.created\",\"id\":\"usr_12345\"}}'\''")
+# Generates clean, adaptive execution string matching your environment profile
+print(f"curl -s -L -X POST {protocol}://{target_host}{target_port}/webhook -H \"Content-Type: application/json\" -H \"X-Hub-Signature-256: {sig}\" -d '\''{{\"event\":\"user.created\",\"id\":\"usr_12345\"}}'\''")
 ')
 
 if [[ "$CURL_COMMAND" == "ERROR:"* ]]; then
@@ -35,13 +65,9 @@ echo "$CURL_COMMAND" | sed 's/ -H/ \\\n  -H/g' | sed 's/ -d/ \\\n  -d/g'
 echo "--------------------------------------------------------"
 echo ""
 
-# 2. Prompt the user for execution choice (Now defaulting to Y)
+# 3. Prompt the user for execution choice (Defaulting to Y)
 read -p "Would you like to run this curl command now? [Y/n]: " USER_CHOICE
-
-# Convert to lowercase
 USER_CHOICE=$(echo "$USER_CHOICE" | tr '[:upper:]' '[:lower:]')
-
-# Default fallback is now 'y' instead of 'n'
 USER_CHOICE="${USER_CHOICE:-y}"
 
 if [[ "$USER_CHOICE" == "y" || "$USER_CHOICE" == "yes" ]]; then
@@ -54,4 +80,3 @@ else
     echo "⏭️ Skipped execution."
     echo ""
 fi
-
